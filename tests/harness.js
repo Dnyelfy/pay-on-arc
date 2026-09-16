@@ -8,6 +8,7 @@ const CHAIN_ID = 5042002;
 const MAINNET_CHAIN_ID = 5042;
 const MAINNET_PAY = '0x' + '5a'.repeat(20);
 const MAINNET_SUBS = '0x' + '5b'.repeat(20);
+const MAINNET_KEEPER = '0x' + '5c'.repeat(20);
 const CHAIN_ID_HEX = '0x' + CHAIN_ID.toString(16);
 const ETHERS_FILE = path.resolve(__dirname, '..', 'vendor', 'ethers-6.13.2.umd.min.js');
 const ACCOUNT = '0x1111111111111111111111111111111111111111';
@@ -40,6 +41,7 @@ async function stubRpc(page, overrides = {}) {
       case 'eth_blockNumber': return '0x186a0';            // 100000
       case 'eth_getBalance': return '0xde0b6b3a7640000';   // 1e18
       case 'eth_getLogs': return [];
+      case 'eth_getTransactionCount': return '0x7';
       case 'eth_call': return '0x';
       case 'eth_getBlockByNumber':
         return { number: '0x186a0', hash: '0x' + '11'.repeat(32), parentHash: '0x' + '22'.repeat(32),
@@ -64,12 +66,13 @@ async function stubRpc(page, overrides = {}) {
 
 /** Serve index.html with the mainnet contract addresses filled in (or blanked),
  *  so tests describe the behaviour whatever the committed file holds today. */
-async function withMainnet(page, { pay = MAINNET_PAY, subs = MAINNET_SUBS } = {}) {
+async function withMainnet(page, { pay = MAINNET_PAY, subs = MAINNET_SUBS, keeper = '' } = {}) {
   await page.route('**/index.html*', async route => {
     const res = await route.fetch();
     const body = (await res.text())
       .replace(/const MAINNET_PAY\s*=\s*'[^']*';/, `const MAINNET_PAY  = '${pay}';`)
-      .replace(/const MAINNET_SUBS\s*=\s*'[^']*';/, `const MAINNET_SUBS = '${subs}';`);
+      .replace(/const MAINNET_SUBS\s*=\s*'[^']*';/, `const MAINNET_SUBS = '${subs}';`)
+      .replace(/const MAINNET_KEEPER\s*=\s*'[^']*';/, `const MAINNET_KEEPER = '${keeper}';`);
     await route.fulfill({ response: res, body, headers: { ...res.headers(), 'content-type': 'text/html; charset=utf-8' } });
   });
 }
@@ -200,4 +203,4 @@ async function goTab(page, name) {
 }
 
 module.exports = { setup, installWallet, stubEthersCdn, stubRpc, stubExternal, waitBooted, goTab, withMainnet,
-                   CHAIN_ID, CHAIN_ID_HEX, MAINNET_CHAIN_ID, MAINNET_PAY, MAINNET_SUBS, ACCOUNT, TX_HASH };
+                   CHAIN_ID, CHAIN_ID_HEX, MAINNET_CHAIN_ID, MAINNET_PAY, MAINNET_SUBS, MAINNET_KEEPER, ACCOUNT, TX_HASH };
