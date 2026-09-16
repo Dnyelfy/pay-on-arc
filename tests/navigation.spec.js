@@ -99,7 +99,7 @@ test.describe('navigation and the landing pitch', () => {
     await waitBooted(page);
     await goTab(page, 'agent');
     await page.evaluate(() => { document.getElementById('kpAddr').textContent = '0xabc'; });
-    await page.click('#sec-agent .copy');
+    await page.click('#kpAddr + .copy');
     expect(await page.evaluate(() => navigator.clipboard.readText())).toBe('0xabc');
   });
 });
