@@ -1,0 +1,9 @@
+{
+  "name": "pay-on-arc-keeper",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Billing agent for Pay on Arc: collects due subscriptions on Arc mainnet.",
+  "type": "module",
+  "scripts": { "start": "node keeper.mjs" },
+  "dependencies": { "ethers": "6.13.2" }
+}
