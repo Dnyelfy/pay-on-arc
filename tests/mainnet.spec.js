@@ -1,6 +1,6 @@
 // @ts-check
 const { test, expect } = require('@playwright/test');
-const { setup, waitBooted, goTab, withMainnet, MAINNET_PAY, MAINNET_CHAIN_ID } = require('./harness');
+const { setup, waitBooted, goTab, withMainnet, MAINNET_PAY, MAINNET_KEEPER, MAINNET_CHAIN_ID } = require('./harness');
 
 const MAINNET_HEX = '0x' + MAINNET_CHAIN_ID.toString(16);
 
@@ -22,7 +22,7 @@ test.describe('Arc mainnet', () => {
   test('only features with live infrastructure are offered', async ({ page }) => {
     await page.goto('/index.html');
     await waitBooted(page);
-    // The in-browser agent holds a private key; CCIP and Pyth have no Arc mainnet deployment yet.
+    // No agent wallet configured yet; CCIP and Pyth have no Arc mainnet deployment yet.
     for (const t of ['agent', 'bridge', 'treasury']) {
       await expect(page.locator('#tab-' + t)).toBeHidden();
       await expect(page.locator('#sec-' + t)).toBeHidden();
@@ -94,5 +94,22 @@ test.describe('Arc mainnet', () => {
     await page.goto('/index.html');
     await waitBooted(page);
     await expect(page.locator('#netPill')).toHaveText('Arc Testnet');
+  });
+
+  test('with an agent wallet configured, the billing agent is watched, never run, from the page', async ({ page }) => {
+    await setup(page, { chainId: MAINNET_HEX, network: null });
+    await withMainnet(page, { keeper: MAINNET_KEEPER });
+    await page.goto('/index.html');
+    await waitBooted(page);
+    await expect(page.locator('#tab-agent')).toBeVisible();
+    await expect(page.locator('.tab-btn:visible')).toHaveCount(6);
+    await goTab(page, 'agent');
+    // No key, no start button — only the read-only panel.
+    await expect(page.locator('button:has-text("Start agent")')).toBeHidden();
+    await expect(page.locator('#saAddr')).toHaveAttribute('href', new RegExp(`^https://explorer\\.arc\\.io/address/${MAINNET_KEEPER}$`, 'i'));
+    await expect(page.locator('#saGas')).toHaveText('1.000 USDC');
+    await expect(page.locator('#saTxs')).toHaveText('7');
+    await expect(page.locator('#saState')).toContainText('funded');
+    expect(await page.evaluate(() => Object.keys(localStorage).filter(k => k.includes('Keeper')))).toEqual([]);
   });
 });
