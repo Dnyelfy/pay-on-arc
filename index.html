@@ -213,6 +213,7 @@ body.engaged .hero{display:none;}
 .connect-btn:disabled{opacity:0.45;cursor:not-allowed;}
 
 @media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important;}}
+select#subPeriods{width:100%;font:inherit;font-family:var(--mono);padding:10px 12px;border:1px solid var(--border, #d8d2c4);border-radius:var(--r-md, 6px);background:var(--bg2);color:var(--text);}
 .pill.testnet{color:var(--amber);border-color:var(--amber);}
 </style>
 </head>
@@ -389,48 +390,85 @@ body.engaged .hero{display:none;}
   <div class="section" id="sec-agent" data-feature="agent" role="tabpanel" aria-labelledby="tab-agent">
     <div class="section-head">
       <h2>A worker that bills for you</h2>
-      <p>A tiny on-chain agent with its own wallet, living in this page. While it is online it watches the subscription contract and charges every due subscription <b>by itself</b> — no MetaMask prompt, no click, no human. It pays only transaction fees; the subscription money always moves subscriber → merchant directly and never touches the agent.</p>
+      <p data-feature="browserAgent">A tiny on-chain agent with its own wallet, living in this page. While it is online it watches the subscription contract and charges every due subscription <b>by itself</b> — no MetaMask prompt, no click, no human. It pays only transaction fees; the subscription money always moves subscriber → merchant directly and never touches the agent.</p>
+      <p data-feature="serverAgent">An agent with its own wallet that runs around the clock, off this page. It watches the subscription contract and collects every due payment <b>by itself</b> — no tab left open, no click, no human. It pays only transaction fees; the subscription money always moves subscriber → merchant directly and never touches the agent.</p>
     </div>
 
+    <div data-feature="serverAgent">
+      <div class="steps">
+        <div class="step"><b>EVERY FEW MINUTES</b><span>Reads every subscription on the contract and picks out the ones that are due.</span></div>
+        <div class="step"><b>BEFORE PAYING GAS</b><span>Checks each subscriber's allowance and balance, and leaves out a charge that could only fail.</span></div>
+        <div class="step"><b>WHEN DUE</b><span>Collects the rest in batches. The money goes straight to the merchant.</span></div>
+      </div>
+
+      <div class="card feature" style="margin-top:var(--s4);">
+        <div class="agent-id">
+          <div>
+            <div class="k">Agent address</div>
+            <div class="v"><a id="saAddr" href="#" target="_blank" rel="noreferrer" style="color:var(--text)">—</a><button class="copy" onclick="copyText($('saAddr').dataset.addr,this)" title="Copy">⧉</button></div>
+          </div>
+          <div>
+            <div class="k">Gas balance</div>
+            <div class="v" id="saGas">—</div>
+          </div>
+        </div>
+        <div class="receipt" style="margin-top:var(--s3);">
+          <div class="r-line"><span>status</span><b id="saState">—</b></div>
+          <div class="r-line"><span>transactions sent</span><b id="saTxs">—</b></div>
+          <div class="r-line"><span>subscriptions on record</span><b id="saSubs">—</b></div>
+          <div class="r-line"><span>due right now</span><b id="saDue">—</b></div>
+          <div class="r-line"><span>next due</span><b id="saNext">—</b></div>
+        </div>
+        <div class="row">
+          <button class="connect-btn" onclick="saRefresh()">↻ Refresh</button>
+          <button class="connect-btn" onclick="saFund()">Fund agent gas</button>
+        </div>
+        <div class="status" id="saStatus"></div>
+        <div class="hint">The agent's key never touches this page or any browser. Anyone may top up its gas; it can only ever spend that gas on collecting charges that are already due.</div>
+      </div>
+    </div>
+
+    <div data-feature="browserAgent">
     <div class="steps">
-      <div class="step"><b>EVERY 15s</b><span>Reads the subscription table, picking up anything created since the last pass.</span></div>
-      <div class="step"><b>WHEN DUE</b><span>Batches the due ones into a single charge, and retries individually if one reverts.</span></div>
-      <div class="step"><b>ON EMPTY</b><span>Says so once and idles, instead of burning gas on a failing call every tick.</span></div>
-    </div>
+        <div class="step"><b>EVERY 15s</b><span>Reads the subscription table, picking up anything created since the last pass.</span></div>
+        <div class="step"><b>WHEN DUE</b><span>Batches the due ones into a single charge, and retries individually if one reverts.</span></div>
+        <div class="step"><b>ON EMPTY</b><span>Says so once and idles, instead of burning gas on a failing call every tick.</span></div>
+      </div>
 
-    <div class="card feature" style="margin-top:var(--s4);">
-      <div class="agent-id">
-        <div>
-          <div class="k">Agent address</div>
-          <div class="v"><span id="kpAddr">—</span><button class="copy" onclick="copyText($('kpAddr').textContent,this)" title="Copy">⧉</button></div>
+      <div class="card feature" style="margin-top:var(--s4);">
+        <div class="agent-id">
+          <div>
+            <div class="k">Agent address</div>
+            <div class="v"><span id="kpAddr">—</span><button class="copy" onclick="copyText($('kpAddr').textContent,this)" title="Copy">⧉</button></div>
+          </div>
+          <div>
+            <div class="k">Gas balance</div>
+            <div class="v" id="kpGas">—</div>
+          </div>
         </div>
-        <div>
-          <div class="k">Gas balance</div>
-          <div class="v" id="kpGas">—</div>
+        <div class="row" style="align-items:flex-end;margin-top:0;">
+          <div style="flex:1;min-width:140px;">
+            <label for="kpFundAmt">Fund gas (USDC)</label>
+            <input id="kpFundAmt" placeholder="1.00" inputmode="decimal"/>
+          </div>
+          <button class="connect-btn" onclick="kpFund()">Fund gas</button>
         </div>
-      </div>
-      <div class="row" style="align-items:flex-end;margin-top:0;">
-        <div style="flex:1;min-width:140px;">
-          <label for="kpFundAmt">Fund gas (USDC)</label>
-          <input id="kpFundAmt" placeholder="1.00" inputmode="decimal"/>
+        <div class="row" style="margin-top:12px;">
+          <button class="connect-btn primary" onclick="kpStart()">▶ Start agent</button>
+          <button class="connect-btn" onclick="kpStop()">■ Stop</button>
+          <button class="connect-btn" onclick="kpSweep()">Sweep gas back</button>
+          <button class="connect-btn" onclick="kpReset()">Delete key</button>
         </div>
-        <button class="connect-btn" onclick="kpFund()">Fund gas</button>
-      </div>
-      <div class="row" style="margin-top:12px;">
-        <button class="connect-btn primary" onclick="kpStart()">▶ Start agent</button>
-        <button class="connect-btn" onclick="kpStop()">■ Stop</button>
-        <button class="connect-btn" onclick="kpSweep()">Sweep gas back</button>
-        <button class="connect-btn" onclick="kpReset()">Delete key</button>
-      </div>
-      <div class="term-wrap">
-        <div class="term-bar">
-          <span class="dot" id="kpDot"></span>
-          <span id="kpState">agent offline</span>
+        <div class="term-wrap">
+          <div class="term-bar">
+            <span class="dot" id="kpDot"></span>
+            <span id="kpState">agent offline</span>
+          </div>
+          <div id="kpTerm">[boot] Agent terminal ready. Fund gas, press Start, and leave this tab open.</div>
         </div>
-        <div id="kpTerm">[boot] Agent terminal ready. Fund gas, press Start, and leave this tab open.</div>
+        <div class="status" id="kpStatus"></div>
+        <div class="hint">The burner key lives in this browser's local storage and nowhere else — that is why this feature is testnet-only and switches itself off on any other network.</div>
       </div>
-      <div class="status" id="kpStatus"></div>
-      <div class="hint">The burner key lives in this browser's local storage and nowhere else — that is why this feature is testnet-only and switches itself off on any other network.</div>
     </div>
   </div>
 
@@ -471,7 +509,7 @@ body.engaged .hero{display:none;}
       <label for="subTo">Merchant / recipient address — who gets paid</label>
       <input id="subTo" placeholder="0x…" spellcheck="false"/>
       <label for="subAmt">Amount per period (USDC)</label>
-      <input id="subAmt" placeholder="10.00" inputmode="decimal"/>
+      <input id="subAmt" placeholder="10.00" inputmode="decimal" oninput="renderApprovalPreview()"/>
       <label id="subIntervalLabel">Billing period</label>
       <div class="row" id="subIntervalRow" role="group" aria-labelledby="subIntervalLabel">
         <button class="connect-btn" data-sec="300" data-feature="testnet" onclick="pickInterval(this)">5 min (test)</button>
@@ -479,6 +517,15 @@ body.engaged .hero{display:none;}
         <button class="connect-btn" data-sec="604800" onclick="pickInterval(this)">Weekly</button>
         <button class="connect-btn primary" data-sec="2592000" onclick="pickInterval(this)">Monthly</button>
       </div>
+      <label for="subPeriods">Pre-approve — how many periods your wallet lets this plan collect</label>
+      <select id="subPeriods" onchange="renderApprovalPreview()">
+        <option value="1">1 period</option>
+        <option value="3">3 periods</option>
+        <option value="6">6 periods</option>
+        <option value="12" selected>12 periods</option>
+        <option value="24">24 periods</option>
+      </select>
+      <div class="cost" id="subApproval"></div>
       <label for="subLabel">Label — shows in both parties' lists</label>
       <input id="subLabel" placeholder="Pro plan / kira / DAO aidatı" maxlength="64"/>
       <div class="row">
@@ -487,7 +534,7 @@ body.engaged .hero{display:none;}
         <button class="connect-btn" onclick="useMyAddress()">Use my address</button>
       </div>
       <div class="status" id="subStatus"></div>
-      <div class="hint">Funds never leave your wallet upfront. You approve USDC once; each period is pulled only when due. Cancel anytime — one click, on-chain. A subscription cannot be created to your own address, so the merchant must be a different wallet. Selling a plan? Put your own address in and copy it as a link instead — whoever opens it lands here with the form already filled.<span data-feature="agent"> Pick <b>5 min</b> if you want to watch the billing agent collect a period during a demo.</span></div>
+      <div class="hint">Funds never leave your wallet upfront. Your wallet first asks you to approve a capped amount — exactly the periods you picked above, never an unlimited allowance. Each period is pulled only when due. Cancel anytime — one click, on-chain. A subscription cannot be created to your own address, so the merchant must be a different wallet. Selling a plan? Put your own address in and copy it as a link instead — whoever opens it lands here with the form already filled.<span data-feature="browserAgent"> Pick <b>5 min</b> if you want to watch the billing agent collect a period during a demo.</span></div>
     </div>
 
     <div class="card">
@@ -496,6 +543,15 @@ body.engaged .hero{display:none;}
         <button class="connect-btn" onclick="loadSubs()">↻ Refresh</button>
       </div>
       <div id="mySubsList"><p class="empty"><b>Nothing yet</b>Connect your wallet and refresh to see what you are paying for.</p></div>
+      <div class="receipt" id="allowBox" style="display:none;margin-top:var(--s3);">
+        <div class="r-line"><span>USDC approved for subscriptions</span><b id="allowLeft">—</b></div>
+        <div class="r-line"><span>covers</span><b id="allowCovers">—</b></div>
+        <div class="row" style="justify-content:center;margin-top:10px;">
+          <button class="connect-btn" onclick="extendAllowance()">Approve 12 more periods</button>
+          <button class="connect-btn" onclick="revokeAllowance()">Revoke approval</button>
+        </div>
+        <div class="status" id="allowStatus"></div>
+      </div>
     </div>
 
     <div class="card">
@@ -615,6 +671,7 @@ window.__ethersReady = new Promise(function(resolve, reject){
    ========================================================================= */
 const MAINNET_PAY  = '0x1C68d18F2C7A4fb694633B4815AE5E5153Dd59Da';   // ArcPayV3 on Arc mainnet
 const MAINNET_SUBS = '0x72E4d6027c2984ddd42EaB8d8F00e9BD17299614';   // ArcSub on Arc mainnet
+const MAINNET_KEEPER = '';   // ← billing agent wallet ADDRESS (never the key) — see keeper/README.md
 
 const NETWORKS = {
   'arc-testnet': {
@@ -669,7 +726,9 @@ const NETWORKS = {
       pyth:       ''
     },
     ccip: null,
-    pythEurUsdId: ''
+    pythEurUsdId: '',
+    // Billing agent run by keeper/keeper.mjs on a schedule; this page only reads it.
+    keeper: MAINNET_KEEPER
   }
 };
 
@@ -712,13 +771,16 @@ const IS_TESTNET = NET.testnet;
    without it hides the feature entirely rather than showing a tab that fails. */
 const FEATURES = {
   testnet:  IS_TESTNET,
-  // The billing agent keeps a burner private key in localStorage — fine for a
+  // In-page agent: keeps a burner private key in localStorage — fine for a
   // testnet demo, unacceptable for real funds.
-  agent:    IS_TESTNET,
+  browserAgent: IS_TESTNET,
+  // Server agent: the key lives in the scheduler, this page only watches it.
+  serverAgent:  !IS_TESTNET && /^0x[0-9a-fA-F]{40}$/.test(NET.keeper || ''),
   ccip:     !!(NET.ccip && NET.contracts.ccipRouter && NET.ccip.destSelector &&
                NET.ccip.receiver && NET.ccip.destRpc && NET.ccip.destScan),
   treasury: !!(NET.contracts.treasury && NET.contracts.pyth && NET.contracts.eurc && NET.pythEurUsdId)
 };
+FEATURES.agent = FEATURES.browserAgent || FEATURES.serverAgent;
 document.querySelectorAll('[data-feature]').forEach(el => {
   if(!FEATURES[el.dataset.feature]) el.hidden = true;
 });
@@ -881,6 +943,7 @@ function go(name, btn){
   // reopened. Leaving that to a Refresh button is what made the list look
   // like it had lost the subscriptions that were sitting in it.
   if(name === 'subs') subsAuto(); else stopSubsTimer();
+  if(name === 'agent' && FEATURES.serverAgent) saRefresh();
 }
 
 /* Arrow-key navigation, as a tablist is expected to behave. */
@@ -1002,6 +1065,7 @@ async function disconnect(){
   $('mySubsList').innerHTML = '<p class="empty"><b>Nothing yet</b>Connect your wallet and refresh to see what you are paying for.</p>';
   $('myMerchList').innerHTML = '<p class="empty"><b>No subscribers yet</b>Share your address with a plan label and they will show up here.</p>';
   $('subStats').style.display = 'none';
+  $('allowBox').style.display = 'none';
   rcItems = [];
   merchSubsCache = [];
   mySubsCache = [];
@@ -1679,7 +1743,8 @@ function boot(){
 
   // Belt and braces: the agent tab is already hidden off testnet, and every
   // control in it is disabled too.
-  if(!FEATURES.agent) kpDisableForMainnet();
+  if(!FEATURES.browserAgent) kpDisableForMainnet();
+  renderApprovalPreview();
 
   refreshGas();
   setInterval(() => { if(!document.hidden) refreshGas(); }, 15000);
@@ -1702,6 +1767,7 @@ window.connect=connect; window.disconnect=disconnect; window.go=go; window.sendP
 window.payIncoming=payIncoming; window.sendSplit=sendSplit; window.loadHistory=loadHistory;
 window.pickWindow=pickWindow; window.sendRecallable=sendRecallable; window.loadRecalls=loadRecalls;
 window.claimPay=claimPay; window.recallPay=recallPay; window.switchNetwork=switchNetwork;
+window.renderApprovalPreview=renderApprovalPreview; window.extendAllowance=extendAllowance; window.revokeAllowance=revokeAllowance;
 window.estimateCcipFee=estimateCcipFee; window.sendCcip=sendCcip; window.loadSepoliaMessages=loadSepoliaMessages;
 
 /* ===== Subscriptions contract ===== */
@@ -1808,25 +1874,102 @@ function intervalName(sec){
   return sec + 's';
 }
 
-async function ensureSubAllowance(minAmount){
+/* Allowances are capped, never unlimited. A wallet that pops up
+   "115,792,089,237,316,195,423,…" for a $10 plan loses the customer before the
+   first charge — and an unlimited approval is more than a subscription needs.
+   The approval covers exactly the periods the subscriber picked, and is added
+   on top of what their other subscriptions still have left, because every
+   subscription to this contract draws on the same allowance. */
+const SUB_EXTEND_PERIODS = 12;
+
+function subPeriods(){
+  const n = parseInt(($('subPeriods') || {}).value, 10);
+  return [1,3,6,12,24].includes(n) ? n : 12;
+}
+
+function renderApprovalPreview(){
+  const box = $('subApproval');
+  if(!box) return;
+  const amt = parseAmount($('subAmt').value);
+  const n = subPeriods();
+  if(!amt){ box.textContent = ''; return; }
+  const total = (Number(amt) * n).toLocaleString('en-US', { maximumFractionDigits: 6 });
+  box.innerHTML = `Your wallet will ask to approve <b>${escHtml(total)} USDC</b> — ${n} × ${escHtml(amt)} USDC. ` +
+    `Nothing is taken beyond one period at a time, and you can revoke it whenever you like.`;
+}
+
+async function readSubAllowance(){
+  const ro = new ethers.Contract(USDC_ERC20, ERC20_MIN_ABI, readProvider);
+  return await retry(() => ro.allowance(userAddress, ARCSUB), 4);
+}
+
+async function ensureSubAllowance(amount, periods, statusId = 'subStatus'){
   /* Bu okuma sayfanin kendi node'undan yapiliyor, cuzdanin node'undan degil.
      Bir islemin hemen ardindan cuzdanin node'u eth_call'a bos veri
      donebiliyor; ethers bunu "missing revert data" diye bildiriyor ve arka
-     arkaya acilan ikinci abonelik tam burada dusuyordu. Okuma hic
-     yapilamazsa aboneligi iptal etmek yerine onayi tazeliyoruz — en kotu
-     ihtimalle bir fazla approve, sessiz bir basarisizlik degil. */
+     arkaya acilan ikinci abonelik tam burada dusuyordu. */
   let cur = null;
-  try{
-    const ro = new ethers.Contract(USDC_ERC20, ERC20_MIN_ABI, readProvider);
-    cur = await retry(() => ro.allowance(userAddress, ARCSUB), 4);
-  }catch(_){
-    setStatus('subStatus','USDC onayi okunamadi — güvenli tarafta kalmak için yeniden onaylıyoruz…');
-  }
-  if (cur !== null && cur >= minAmount) return;
-  setStatus('subStatus','Approve USDC for recurring pulls…');
+  try{ cur = await readSubAllowance(); }catch(_){}
+  const add = amount * BigInt(periods);
+  // Already enough for this plan on top of everything else? Then no prompt.
+  const committed = mySubsCache
+    .filter(x => x.active && x.subscriber && userAddress && x.subscriber.toLowerCase() === userAddress.toLowerCase())
+    .reduce((t, x) => t + BigInt(x.amount), 0n);
+  if(cur !== null && cur >= committed + add) return;
+  // approve() sets the allowance, it does not add to it — so keep what the
+  // other subscriptions still have and put this plan's periods on top.
+  const target = (cur ?? 0n) + add;
+  setStatus(statusId, `Approve ${escHtml(ethers.formatUnits(target, 6))} USDC in your wallet — ${periods} period(s) of this plan${cur ? ' plus what your other subscriptions still have' : ''}…`);
   const usdc = new ethers.Contract(USDC_ERC20, ERC20_MIN_ABI, signer);
-  const tx = await usdc.approve(ARCSUB, ethers.MaxUint256);
+  const tx = await usdc.approve(ARCSUB, target);
   await tx.wait();
+}
+
+async function renderAllowance(){
+  const box = $('allowBox');
+  if(!box || !userAddress || !booted) return;
+  const mine = mySubsCache.filter(x => x.active);
+  if(!mine.length){ box.style.display = 'none'; return; }
+  let cur;
+  try{ cur = await readSubAllowance(); }catch(_){ return; }
+  const perPeriod = mine.reduce((t, x) => t + BigInt(x.amount), 0n);
+  const covers = perPeriod > 0n ? cur / perPeriod : 0n;
+  $('allowLeft').textContent = Number(ethers.formatUnits(cur, 6)).toLocaleString('en-US', { maximumFractionDigits: 2 }) + ' USDC';
+  $('allowCovers').innerHTML = covers === 0n
+    ? '<span style="color:var(--red)">not the next charge — approve more or it will be skipped</span>'
+    : covers < 2n
+      ? `<span style="color:var(--amber)">${covers} more round of charges</span>`
+      : `${covers} more rounds of charges`;
+  box.style.display = '';
+}
+
+async function extendAllowance(){
+  if(!await requireSigner('allowStatus')) return;
+  const mine = mySubsCache.filter(x => x.active);
+  if(!mine.length) return;
+  try{
+    const perPeriod = mine.reduce((t, x) => t + BigInt(x.amount), 0n);
+    let cur = 0n;
+    try{ cur = await readSubAllowance(); }catch(_){}
+    const target = cur + perPeriod * BigInt(SUB_EXTEND_PERIODS);
+    setStatus('allowStatus', `Approve ${escHtml(ethers.formatUnits(target, 6))} USDC in your wallet…`);
+    const usdc = new ethers.Contract(USDC_ERC20, ERC20_MIN_ABI, signer);
+    await (await usdc.approve(ARCSUB, target)).wait();
+    setStatus('allowStatus', '✓ Approval extended', 'ok');
+    renderAllowance();
+  }catch(e){ setStatus('allowStatus', 'Failed: ' + errText(e, 90), 'err'); }
+}
+
+async function revokeAllowance(){
+  if(!await requireSigner('allowStatus')) return;
+  if(!confirm('Revoke the approval? Every subscription you fund will stop being collected until you approve again.')) return;
+  try{
+    setStatus('allowStatus', 'Confirm in your wallet…');
+    const usdc = new ethers.Contract(USDC_ERC20, ERC20_MIN_ABI, signer);
+    await (await usdc.approve(ARCSUB, 0n)).wait();
+    setStatus('allowStatus', '✓ Approval revoked', 'ok');
+    renderAllowance();
+  }catch(e){ setStatus('allowStatus', 'Failed: ' + errText(e, 90), 'err'); }
 }
 
 async function createSub(){
@@ -1839,7 +1982,7 @@ async function createSub(){
   if (!amt){ setStatus('subStatus','Enter an amount above zero.','err'); return; }
   try{
     const amount = toUnits6(amt);
-    await ensureSubAllowance(amount);
+    await ensureSubAllowance(amount, subPeriods());
     setStatus('subStatus','Confirm subscription — first period is charged now…');
     const c = new ethers.Contract(ARCSUB, SUB_ABI, signer);
     /* Once kontrata sor. Kontrat gercekten reddediyorsa sebebi burada
@@ -1879,7 +2022,7 @@ async function createSub(){
         renderSubs();
       }
     }
-    $('subAmt').value = ''; $('subLabel').value = '';
+    $('subAmt').value = ''; $('subLabel').value = ''; renderApprovalPreview();
     await waitForRead(rc.blockNumber);
     loadSubs({ silent: true, after: true });
   }catch(e){ setStatus('subStatus','Failed: '+errText(e,90),'err'); }
@@ -1972,6 +2115,7 @@ function renderSubs(){
   $('myMerchList').innerHTML = activeMerch.length
     ? activeMerch.map(s=>subRow(s,false)).join('')
     : '<p class="empty"><b>No subscribers yet</b>Share your address with a plan label and they will show up here.</p>';
+  renderAllowance();
 }
 
 /* One pass at a time, and callers wait for it instead of being dropped.
@@ -2468,6 +2612,79 @@ function kpReset(){
 }
 
 window.kpStart=kpStart; window.kpStop=kpStop; window.kpFund=kpFund; window.kpSweep=kpSweep; window.kpReset=kpReset;
+
+/* ===== Billing agent, server edition (mainnet) =====
+   keeper/keeper.mjs does the work on a schedule with a key this page never
+   sees. All the page does is read the agent's wallet and the contract, so
+   anyone can check that it is funded and that nothing due is being left. */
+const saMinGas = () => ethers.parseUnits('0.05', NET.native.decimals);
+const SA_SCAN_LIMIT = 500;       // newest subscriptions read for the due count
+let saBusy = false;
+
+async function saRefresh(){
+  if(!FEATURES.serverAgent || !booted || saBusy) return;
+  saBusy = true;
+  const keeper = ethers.getAddress(NET.keeper);
+  $('saAddr').textContent = short(keeper) + ' ↗';
+  $('saAddr').href = `${SCAN}/address/${keeper}`;
+  $('saAddr').dataset.addr = keeper;
+  setStatus('saStatus', 'Reading the agent and the contract…');
+  try{
+    const [bal, nonce] = await Promise.all([
+      retry(() => readProvider.getBalance(keeper)),
+      retry(() => readProvider.getTransactionCount(keeper))
+    ]);
+    $('saGas').textContent = Number(formatNative(bal)).toFixed(3) + ' ' + NET.native.symbol;
+    $('saTxs').textContent = String(nonce);
+    const low = bal < saMinGas();
+    $('saState').innerHTML = low
+      ? '<span style="color:var(--red)">out of gas — it cannot collect until funded</span>'
+      : '<span style="color:var(--green)">funded · collects every few minutes</span>';
+
+    const c = new ethers.Contract(ARCSUB, SUB_ABI, readProvider);
+    const nextId = Number(await retry(() => c.nextId()));
+    const total = Math.max(0, nextId - 1);
+    $('saSubs').textContent = String(total);
+    const ids = [];
+    for(let id = nextId - 1; id >= 1 && ids.length < SA_SCAN_LIMIT; id--) ids.push(id);
+    const now = Math.floor(Date.now() / 1000);
+    let due = 0, next = null;
+    await inBatches(ids, 5, async id => {
+      try{
+        const x = await retry(() => c.getSub(id), 2);
+        if(!x.active) return;
+        const at = Number(x.nextChargeAt);
+        if(at <= now) due++;
+        else if(next === null || at < next) next = at;
+      }catch(_){}
+    });
+    $('saDue').textContent = String(due) + (total > SA_SCAN_LIMIT ? ` (newest ${SA_SCAN_LIMIT})` : '');
+    $('saNext').textContent = next ? new Date(next * 1000).toLocaleString() : '—';
+    setStatus('saStatus', '');
+  }catch(e){
+    setStatus('saStatus', 'Could not read the agent: ' + errText(e, 90), 'err');
+  }finally{
+    saBusy = false;
+  }
+}
+
+async function saFund(){
+  if(!FEATURES.serverAgent) return;
+  if(!await requireSigner('saStatus')) return;
+  const raw = prompt(`Send gas to the billing agent (${NET.native.symbol}). About 0.003 covers one collection.`, '1');
+  if(raw === null) return;
+  const amt = parseAmount(raw);
+  if(!amt){ setStatus('saStatus', 'Enter an amount above zero.', 'err'); return; }
+  try{
+    setStatus('saStatus', 'Confirm in your wallet…');
+    const tx = await signer.sendTransaction({ to: ethers.getAddress(NET.keeper), value: parseNative(amt) });
+    const rc = await tx.wait();
+    setStatus('saStatus', `✓ Sent ${escHtml(amt)} ${NET.native.symbol} · <a href="${SCAN}/tx/${rc.hash}" target="_blank" rel="noreferrer">tx ↗</a>`, 'ok');
+    await waitForRead(rc.blockNumber);
+    saRefresh();
+  }catch(e){ setStatus('saStatus', 'Failed: ' + errText(e, 90), 'err'); }
+}
+window.saRefresh=saRefresh; window.saFund=saFund;
 
 /* ===== Treasury agent (Pyth EUR/USD · USDC⇄EURC ratio) ===== */
 const TREASURY = NET.contracts.treasury;
