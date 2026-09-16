@@ -21,6 +21,7 @@ test.describe('pay-links', () => {
     expect(u.searchParams.get('to')).toBe('0x2222222222222222222222222222222222222222');
     expect(u.searchParams.get('amt')).toBe('2.50');   // comma normalized before sharing
     expect(u.searchParams.get('note')).toBe('coffee');
+    expect(u.searchParams.get('net')).toBe('testnet');  // a link never changes networks when opened
   });
 
   test('refuses to build a link without a valid amount', async ({ page }) => {

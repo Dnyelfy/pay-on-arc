@@ -83,7 +83,7 @@ contract RejectingReceiver {
     }
 }
 
-/// Re-enters ArcPayV2.claim while being paid by it.
+/// Re-enters ArcPayV3.claim while being paid by it.
 contract ReentrantClaimer {
     address public pay;
     uint256 public id;
@@ -104,6 +104,17 @@ contract ReentrantClaimer {
             reentries++;
             (bool ok, ) = pay.call(abi.encodeWithSignature("claim(uint256)", id));
             ok; // expected to fail — the status guard should already be set
+        }
+    }
+}
+
+/// Calls splitPay but cannot take native currency back, so a refund to it fails.
+contract RefusingSplitter {
+    function split(address pay, address payable[] calldata to) external payable {
+        (bool ok, bytes memory ret) = pay.call{value: msg.value}(
+            abi.encodeWithSignature("splitPay(address[],string)", to, "x"));
+        if (!ok) {
+            assembly { revert(add(ret, 32), mload(ret)) }
         }
     }
 }

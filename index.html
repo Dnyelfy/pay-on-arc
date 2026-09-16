@@ -4,9 +4,9 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>Pay on Arc — USDC-native payments</title>
-<meta name="description" content="Send USDC, create payment links, split bills, bridge messages cross-chain and track gas — all native on Arc Testnet, ~$0.01 per tx."/>
+<meta name="description" content="Subscriptions that collect themselves, payment links, split payments and cancellable transfers — native on Arc, gas paid in USDC."/>
 <meta property="og:title" content="Pay on Arc — USDC-native payments"/>
-<meta property="og:description" content="Payment links, split payments, cross-chain messaging via Chainlink CCIP, live gas tracker & on-chain receipts on Arc Testnet."/>
+<meta property="og:description" content="Subscriptions, payment links, split payments, cancellable transfers and on-chain receipts — native on Arc, gas paid in USDC."/>
 <!-- The app answers on two hostnames (the custom domain and the Vercel one).
      Name the canonical one, or a shared link splits its identity between them. -->
 <link rel="canonical" href="https://payonarc.com/"/>
@@ -21,6 +21,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet"/>
 <style>
+[hidden]{display:none !important;}
 :root{
   /* Paper. The perforated receipt was the one distinctive thing here, so the
      whole product is that object: a printed financial document. One ink, one
@@ -212,6 +213,7 @@ body.engaged .hero{display:none;}
 .connect-btn:disabled{opacity:0.45;cursor:not-allowed;}
 
 @media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important;}}
+.pill.testnet{color:var(--amber);border-color:var(--amber);}
 </style>
 </head>
 <body>
@@ -236,7 +238,7 @@ body.engaged .hero{display:none;}
     <p class="lede">A $5 monthly plan cannot survive where collecting it costs more than it earns. Here a charge costs the rounding error below — so a subscription can pull its own money, every period, with nobody clicking anything.</p>
     <div class="hero-cta">
       <button class="connect-btn primary btn-lg" onclick="go('subs')">Start a subscription</button>
-      <button class="connect-btn btn-lg" onclick="go('agent')">Meet the billing agent</button>
+      <button class="connect-btn btn-lg" data-feature="agent" onclick="go('agent')">Meet the billing agent</button>
     </div>
 
     <p class="econ">
@@ -250,12 +252,12 @@ body.engaged .hero{display:none;}
 
   <div class="tabs" role="tablist" aria-label="Pay on Arc features">
     <button class="tab-btn active" role="tab" aria-selected="true"  aria-controls="sec-subs"     id="tab-subs"     onclick="go('subs',this)">Subscriptions</button>
-    <button class="tab-btn"        role="tab" aria-selected="false" aria-controls="sec-agent"    id="tab-agent"    tabindex="-1" onclick="go('agent',this)">Billing Agent</button>
+    <button class="tab-btn"        role="tab" aria-selected="false" aria-controls="sec-agent"    id="tab-agent"    data-feature="agent" tabindex="-1" onclick="go('agent',this)">Billing Agent</button>
     <button class="tab-btn"        role="tab" aria-selected="false" aria-controls="sec-pay"      id="tab-pay"      tabindex="-1" onclick="go('pay',this)">Pay &amp; Link</button>
     <button class="tab-btn"        role="tab" aria-selected="false" aria-controls="sec-split"    id="tab-split"    tabindex="-1" onclick="go('split',this)">Split</button>
     <button class="tab-btn"        role="tab" aria-selected="false" aria-controls="sec-recall"   id="tab-recall"   tabindex="-1" onclick="go('recall',this)">Recallable</button>
-    <button class="tab-btn"        role="tab" aria-selected="false" aria-controls="sec-bridge"   id="tab-bridge"   tabindex="-1" onclick="go('bridge',this)">Cross-Chain</button>
-    <button class="tab-btn"        role="tab" aria-selected="false" aria-controls="sec-treasury" id="tab-treasury" tabindex="-1" onclick="go('treasury',this)">Treasury</button>
+    <button class="tab-btn"        role="tab" aria-selected="false" aria-controls="sec-bridge"   id="tab-bridge"   data-feature="ccip" tabindex="-1" onclick="go('bridge',this)">Cross-Chain</button>
+    <button class="tab-btn"        role="tab" aria-selected="false" aria-controls="sec-treasury" id="tab-treasury" data-feature="treasury" tabindex="-1" onclick="go('treasury',this)">Treasury</button>
     <button class="tab-btn"        role="tab" aria-selected="false" aria-controls="sec-history"  id="tab-history"  tabindex="-1" onclick="go('history',this)">Receipts</button>
   </div>
 
@@ -313,7 +315,7 @@ body.engaged .hero{display:none;}
   <div class="section" id="sec-recall" role="tabpanel" aria-labelledby="tab-recall">
     <div class="section-head">
       <h2>Payments you can take back</h2>
-      <p>Inspired by Miden's P2IDR notes. The recipient can claim at any moment; if they never do, the money returns to you once the window closes. The cure for sending to the wrong address.</p>
+      <p>Inspired by Miden's P2IDR notes. Until the window closes the payment is still yours and you can cancel it; once it closes it is theirs to claim. The cure for sending to the wrong address.</p>
     </div>
     <div class="card feature">
       <h2>Send a recallable payment</h2>
@@ -341,14 +343,14 @@ body.engaged .hero{display:none;}
   </div>
 
   <!-- CROSS-CHAIN (Chainlink CCIP) -->
-  <div class="section" id="sec-bridge" role="tabpanel" aria-labelledby="tab-bridge">
+  <div class="section" id="sec-bridge" data-feature="ccip" role="tabpanel" aria-labelledby="tab-bridge">
     <div class="section-head">
       <h2>One transaction, two chains</h2>
       <p>A message leaves Arc through the Chainlink CCIP router, crosses a live lane, and runs code in a contract on the far side — where it is stored and emits an event you can read back below. The fee is paid in USDC, like everything else here.</p>
     </div>
     <div class="card feature">
       <h2>Send a message across chains</h2>
-      <p class="hint" style="margin:0 0 8px;">Powered by Chainlink CCIP. Your message leaves Arc Testnet and is delivered to Ethereum Sepolia — one of the few live cross-chain lanes on Arc. The fee is paid in USDC, like everything else here.</p>
+      <p class="hint" style="margin:0 0 8px;">Powered by Chainlink CCIP. Your message leaves Arc and is delivered to the chain shown below. The fee is paid in USDC, like everything else here.</p>
       <div class="lane">
         <span class="chip arc" id="ccLaneSrc">—</span>
         <span class="arrow">→</span>
@@ -384,7 +386,7 @@ body.engaged .hero{display:none;}
   </div>
 
   <!-- BILLING AGENT -->
-  <div class="section" id="sec-agent" role="tabpanel" aria-labelledby="tab-agent">
+  <div class="section" id="sec-agent" data-feature="agent" role="tabpanel" aria-labelledby="tab-agent">
     <div class="section-head">
       <h2>A worker that bills for you</h2>
       <p>A tiny on-chain agent with its own wallet, living in this page. While it is online it watches the subscription contract and charges every due subscription <b>by itself</b> — no MetaMask prompt, no click, no human. It pays only transaction fees; the subscription money always moves subscriber → merchant directly and never touches the agent.</p>
@@ -448,7 +450,7 @@ body.engaged .hero{display:none;}
   <div class="section active" id="sec-subs" role="tabpanel" aria-labelledby="tab-subs">
     <div class="section-head">
       <h2>Recurring payments, settled on-chain</h2>
-      <p>No money leaves your wallet up front. You approve USDC once, and each period is pulled only when it comes due — by the merchant, by you, or by the billing agent. Cancel in one transaction, any time, from either side.</p>
+      <p>No money leaves your wallet up front. You approve USDC once, and each period is pulled only when it comes due — by the merchant<span data-feature="agent">, the billing agent</span> or by you. Cancel in one transaction, any time, from either side.</p>
     </div>
 
     <div class="stats" id="subStats" style="display:none;">
@@ -472,7 +474,7 @@ body.engaged .hero{display:none;}
       <input id="subAmt" placeholder="10.00" inputmode="decimal"/>
       <label id="subIntervalLabel">Billing period</label>
       <div class="row" id="subIntervalRow" role="group" aria-labelledby="subIntervalLabel">
-        <button class="connect-btn" data-sec="300" onclick="pickInterval(this)">5 min (test)</button>
+        <button class="connect-btn" data-sec="300" data-feature="testnet" onclick="pickInterval(this)">5 min (test)</button>
         <button class="connect-btn" data-sec="86400" onclick="pickInterval(this)">Daily</button>
         <button class="connect-btn" data-sec="604800" onclick="pickInterval(this)">Weekly</button>
         <button class="connect-btn primary" data-sec="2592000" onclick="pickInterval(this)">Monthly</button>
@@ -485,7 +487,7 @@ body.engaged .hero{display:none;}
         <button class="connect-btn" onclick="useMyAddress()">Use my address</button>
       </div>
       <div class="status" id="subStatus"></div>
-      <div class="hint">Funds never leave your wallet upfront. You approve USDC once; each period is pulled only when due. Cancel anytime — one click, on-chain. A subscription cannot be created to your own address, so the merchant must be a different wallet. Selling a plan? Put your own address in and copy it as a link instead — whoever opens it lands here with the form already filled. Pick <b>5 min</b> if you want to watch the billing agent collect a period during a demo.</div>
+      <div class="hint">Funds never leave your wallet upfront. You approve USDC once; each period is pulled only when due. Cancel anytime — one click, on-chain. A subscription cannot be created to your own address, so the merchant must be a different wallet. Selling a plan? Put your own address in and copy it as a link instead — whoever opens it lands here with the form already filled.<span data-feature="agent"> Pick <b>5 min</b> if you want to watch the billing agent collect a period during a demo.</span></div>
     </div>
 
     <div class="card">
@@ -507,19 +509,19 @@ body.engaged .hero{display:none;}
         <button class="connect-btn" id="autoCollectBtn" onclick="toggleAutoCollect()">Auto-collector: OFF</button>
       </div>
       <div class="status" id="merchStatus"></div>
-      <div class="hint">A due charge can be triggered by anyone — that is what makes it automatable. Leave the auto-collector on and this tab bills for you; hand the job to the <a href="#agent" onclick="go('agent');return false;" style="color:var(--accent)">billing agent</a> and you can close the tab entirely.</div>
+      <div class="hint">A due charge can be triggered by anyone — that is what makes it automatable. Leave the auto-collector on and this tab bills for you<span data-feature="agent">; hand the job to the <a href="#agent" onclick="go('agent');return false;" style="color:var(--accent)">billing agent</a> and you can close the tab entirely</span>.</div>
     </div>
   </div>
 
   <!-- TREASURY -->
-  <div class="section" id="sec-treasury" role="tabpanel" aria-labelledby="tab-treasury">
+  <div class="section" id="sec-treasury" data-feature="treasury" role="tabpanel" aria-labelledby="tab-treasury">
     <div class="section-head">
       <h2>A treasury that rebalances itself</h2>
       <p>It holds USDC and EURC and tries to keep a fixed split of value between them. Every EUR/USD tick moves that split, so the agent reads the Pyth feed and — once drift breaks the band — pays any keeper a bonus to settle it back on-chain.</p>
     </div>
     <div class="card feature">
       <h2>Treasury agent — reads Pyth, holds the mix</h2>
-      <div class="hint" style="margin-bottom:16px;">The treasury holds two stablecoins — <b>USDC</b> and <b>EURC</b> — and tries to keep a fixed value split between them. Every EUR/USD tick shifts that split, so the agent reads the <b>Pyth EUR/USD</b> feed and, when the mix drifts out of band, lets any keeper settle it back on-chain. Live oracle · Arc Testnet.</div>
+      <div class="hint" style="margin-bottom:16px;">The treasury holds two stablecoins — <b>USDC</b> and <b>EURC</b> — and tries to keep a fixed value split between them. Every EUR/USD tick shifts that split, so the agent reads the <b>Pyth EUR/USD</b> feed and, when the mix drifts out of band, lets any keeper settle it back on-chain. Live oracle on Arc.</div>
       <div class="lane" style="margin-bottom:2px;">
         <span class="chip">Pyth oracle</span><span class="arrow">→</span>
         <span class="chip arc">Treasury agent</span><span class="arrow">→</span>
@@ -578,7 +580,7 @@ body.engaged .hero{display:none;}
 
 <footer>
   <div class="wrap">
-    Built by <a href="https://x.com/Dnyelfy" target="_blank" rel="noreferrer">@Dnyelfy</a> · contract <a id="cLink" href="#" target="_blank" rel="noreferrer">Pay on Arc</a> · <span id="footNet">—</span><br/>
+    Built by <a href="https://x.com/Dnyelfy" target="_blank" rel="noreferrer">@Dnyelfy</a> · contract <a id="cLink" href="#" target="_blank" rel="noreferrer">Pay on Arc</a> · <span id="footNet">—</span><span id="netSwitch"></span><br/>
     More Arc tools → <a href="https://arc-wallet-check.vercel.app" target="_blank" rel="noreferrer">Wallet Check</a> · <a href="https://arcvote-one.vercel.app/arc-dapp.html" target="_blank" rel="noreferrer">Quest Hub</a> · <a href="https://arc-agent-forge.vercel.app" target="_blank" rel="noreferrer">Agent Forge</a>
   </div>
 </footer>
@@ -605,21 +607,28 @@ window.__ethersReady = new Promise(function(resolve, reject){
         onload="__ethersOk()" onerror="__ethersFail()"></script>
 <script>
 /* ============================================================================
-   NETWORK CONFIG — the single place to switch between Arc Testnet and mainnet.
-   Flip ACTIVE_NETWORK and fill in the mainnet contract addresses; nothing else
-   in this file hardcodes a chain, an RPC, an explorer or a contract address.
+   NETWORK CONFIG — every chain constant lives here and nowhere else.
+
+   Arc mainnet contracts are contracts/ArcPayV3.sol and contracts/ArcSub.sol
+   (ArcSub constructed with the USDC address 0x3600…0000). If either address is
+   ever blanked, the site falls back to Arc Testnet instead of refusing to load.
    ========================================================================= */
+const MAINNET_PAY  = '0x1C68d18F2C7A4fb694633B4815AE5E5153Dd59Da';   // ArcPayV3 on Arc mainnet
+const MAINNET_SUBS = '0x72E4d6027c2984ddd42EaB8d8F00e9BD17299614';   // ArcSub on Arc mainnet
+
 const NETWORKS = {
   'arc-testnet': {
     label: 'Arc Testnet',
+    param: 'testnet',
     testnet: true,
     chainId: 5042002,
     rpc: 'https://rpc.testnet.arc.network',
     scan: 'https://testnet.arcscan.app',
+    explorerApi: 'https://testnet.arcscan.app',   // Blockscout API, used as a log-scan fallback
     native: { name: 'USDC', symbol: 'USDC', decimals: 18 },
     contracts: {
-      pay:        '0xa0185d00ECAE1263282996A4B132949b0aee47E4', // Pay on Arc payments (V3 — cancel window)
-      subs:       '0x015f65293c936741588dC03ebDD1A193D62535eC', // Subscriptions
+      pay:        '0xa0185d00ECAE1263282996A4B132949b0aee47E4', // ArcPayV3 — cancel window
+      subs:       '0x015f65293c936741588dC03ebDD1A193D62535eC', // ArcSub
       treasury:   '0xC99f4c415C7d9e2bafDC04C43500131fDb43eA53', // Treasury agent
       usdc:       '0x3600000000000000000000000000000000000000', // USDC (ERC-20 view of native)
       eurc:       '0x89B50855Aa3bE2F677cD6303Cec089B5F319D72a',
@@ -636,43 +645,93 @@ const NETWORKS = {
     pythEurUsdId: '0xa995d00bb36a63cef7fd2c287dc105fc8f3d93779f062f09551b0af3e81ec30b'
   },
 
-  /* Mainnet profile. Every '' below is a deliberate blank: the app refuses to
-     start on a network whose contracts are not filled in, so a half-configured
-     mainnet build cannot quietly send real money to the zero address. */
+  /* Values from docs.arc.io (Connect to Arc · Contract addresses). Pyth and
+     Chainlink CCIP list no Arc mainnet deployment yet, so the Treasury and
+     Cross-Chain features are switched off here rather than shown broken. When
+     they arrive, fill in treasury/pyth/pythEurUsdId or ccipRouter/ccip and the
+     tabs come back on their own. */
   'arc-mainnet': {
-    label: 'Arc',
+    label: 'Arc Mainnet',
+    param: 'mainnet',
     testnet: false,
-    chainId: 0,
-    rpc: '',
-    scan: '',
+    chainId: 5042,
+    rpc: 'https://rpc.mainnet.arc.io',
+    scan: 'https://explorer.arc.io',
+    explorerApi: '',
     native: { name: 'USDC', symbol: 'USDC', decimals: 18 },
-    contracts: { pay:'', subs:'', treasury:'', usdc:'', eurc:'', ccipRouter:'', pyth:'' },
-    ccip: { destSelector:'', destName:'Ethereum', receiver:'', destRpc:'', destScan:'' },
-    pythEurUsdId: '0xa995d00bb36a63cef7fd2c287dc105fc8f3d93779f062f09551b0af3e81ec30b'
+    contracts: {
+      pay:        MAINNET_PAY,
+      subs:       MAINNET_SUBS,
+      treasury:   '',
+      usdc:       '0x3600000000000000000000000000000000000000',
+      eurc:       '0xbEf5f6d51CB62b58e6A8f77868681825C6fe21c1',
+      ccipRouter: '',
+      pyth:       ''
+    },
+    ccip: null,
+    pythEurUsdId: ''
   }
 };
 
-// ── Switch networks here ──────────────────────────────────────────────────
-const ACTIVE_NETWORK = 'arc-testnet';
-// ──────────────────────────────────────────────────────────────────────────
+/* What a network must have before a single payment can be sent on it. */
+function coreProblems(n){
+  const missing = [];
+  if(!n.rpc) missing.push('rpc');
+  if(!n.scan) missing.push('scan');
+  if(!n.chainId) missing.push('chainId');
+  for(const k of ['pay','subs','usdc']){
+    if(!n.contracts[k]) missing.push('contracts.' + k);
+  }
+  return missing;
+}
 
+/* Which network this page load runs on:
+   1. ?net=mainnet / ?net=testnet always wins — and an unconfigured explicit
+      choice fails loudly instead of quietly landing somewhere else.
+   2. A pay- or subscribe-link with no ?net was made before mainnet existed,
+      so it was made on testnet. Opening it on mainnet would ask for real money.
+   3. The network this browser last switched to, if it is usable.
+   4. Mainnet once it is configured, otherwise testnet. */
+const NET_STORE_KEY = 'payonarc.network';
+function resolveNetwork(){
+  const q = new URLSearchParams(location.search);
+  const byParam = Object.keys(NETWORKS).find(k => NETWORKS[k].param === q.get('net'));
+  if(byParam) return byParam;
+  if(q.has('to') || q.has('sub')) return 'arc-testnet';
+  let saved = null;
+  try{ saved = localStorage.getItem(NET_STORE_KEY); }catch(_){}
+  if(saved && NETWORKS[saved] && !coreProblems(NETWORKS[saved]).length) return saved;
+  return coreProblems(NETWORKS['arc-mainnet']).length ? 'arc-testnet' : 'arc-mainnet';
+}
+
+const ACTIVE_NETWORK = resolveNetwork();
 const NET = NETWORKS[ACTIVE_NETWORK];
 const IS_TESTNET = NET.testnet;
 
+/* Optional features. Each needs its own infrastructure on the chain; a network
+   without it hides the feature entirely rather than showing a tab that fails. */
+const FEATURES = {
+  testnet:  IS_TESTNET,
+  // The billing agent keeps a burner private key in localStorage — fine for a
+  // testnet demo, unacceptable for real funds.
+  agent:    IS_TESTNET,
+  ccip:     !!(NET.ccip && NET.contracts.ccipRouter && NET.ccip.destSelector &&
+               NET.ccip.receiver && NET.ccip.destRpc && NET.ccip.destScan),
+  treasury: !!(NET.contracts.treasury && NET.contracts.pyth && NET.contracts.eurc && NET.pythEurUsdId)
+};
+document.querySelectorAll('[data-feature]').forEach(el => {
+  if(!FEATURES[el.dataset.feature]) el.hidden = true;
+});
+
 /* Config sanity check — surfaces a misconfigured build instead of letting it
    run against address(0). Returns a list of missing keys. */
-function configProblems(){
-  const missing = [];
-  if(!NET.rpc) missing.push('rpc');
-  if(!NET.scan) missing.push('scan');
-  if(!NET.chainId) missing.push('chainId');
-  for(const k of ['pay','subs','treasury','usdc','eurc','ccipRouter','pyth']){
-    if(!NET.contracts[k]) missing.push('contracts.' + k);
-  }
-  for(const k of ['destSelector','receiver','destRpc','destScan']){
-    if(!NET.ccip[k]) missing.push('ccip.' + k);
-  }
-  return missing;
+function configProblems(){ return coreProblems(NET); }
+
+/* Move this browser to the other network. The choice is remembered, and the
+   query string is dropped so a link that forced one network does not stick. */
+function switchNetwork(key){
+  try{ localStorage.setItem(NET_STORE_KEY, key); }catch(_){}
+  location.href = location.pathname + '?net=' + NETWORKS[key].param + location.hash;
 }
 
 const ARCPAY = NET.contracts.pay;
@@ -691,6 +750,8 @@ const ABI = [
   'function receivedBy(address) view returns (uint256[])',
   'function total() view returns (uint256)',
   'event PaymentSent(address indexed from, address indexed to, uint256 amount, string note)',
+  // ArcPayV3 returns a refused split share to the sender instead of reverting.
+  'event ShareReturned(address indexed from, address indexed to, uint256 amount)',
   'event RecallableCreated(uint256 indexed id, address indexed from, address indexed to, uint256 amount, uint256 claimableAt, string note)',
   'event Claimed(uint256 indexed id, address indexed to, uint256 amount)',
   'event Recalled(uint256 indexed id, address indexed from, uint256 amount)'
@@ -789,7 +850,8 @@ function setStatus(id,msg,cls){ const s=$(id); s.innerHTML=msg||''; s.className=
 
 /* Tab order is the product argument: subscriptions first, the agent that runs
    them second, everything else after. */
-const TABS = ['subs','agent','pay','split','recall','bridge','treasury','history'];
+const TABS = ['subs','agent','pay','split','recall','bridge','treasury','history']
+  .filter(t => !$('tab-' + t).hidden);
 
 function showOverview(){
   document.body.classList.remove('engaged');
@@ -814,7 +876,7 @@ function go(name, btn){
   }
   // Keep the tab in the URL so a demo can be linked straight to a feature.
   if(location.hash.slice(1) !== name) history.replaceState(null, '', '#' + name);
-  if(name === 'treasury') pythAuto();
+  if(name === 'treasury' && FEATURES.treasury) pythAuto();
   // A tab that reads the chain must repaint from its own state when it is
   // reopened. Leaving that to a Refresh button is what made the list look
   // like it had lost the subscriptions that were sitting in it.
@@ -823,7 +885,7 @@ function go(name, btn){
 
 /* Arrow-key navigation, as a tablist is expected to behave. */
 document.querySelector('.tabs').addEventListener('keydown', e => {
-  const tabs = [...document.querySelectorAll('.tab-btn')];
+  const tabs = [...document.querySelectorAll('.tab-btn')].filter(b => !b.hidden);
   const i = tabs.indexOf(document.activeElement);
   if(i === -1) return;
   let next = null;
@@ -1004,6 +1066,7 @@ function makeLink(){
   if(!to){ setStatus('payStatus','Pay-link needs a valid recipient address.','err'); return; }
   if(!amt){ setStatus('payStatus','Pay-link needs an amount above zero.','err'); return; }
   const u = new URL(location.origin + location.pathname);
+  u.searchParams.set('net', NET.param);   // a link must never change networks when it is opened
   u.searchParams.set('to', to);
   u.searchParams.set('amt', amt);
   if(note) u.searchParams.set('note', note);
@@ -1041,6 +1104,7 @@ function makeSubLink(){
   if(!to){ setStatus('subStatus','A subscribe link needs a valid merchant address.','err'); return; }
   if(!amt){ setStatus('subStatus','A subscribe link needs an amount above zero.','err'); return; }
   const u = new URL(location.origin + location.pathname);
+  u.searchParams.set('net', NET.param);
   u.searchParams.set('sub', to);
   u.searchParams.set('samt', amt);
   u.searchParams.set('sint', String(subInterval));
@@ -1109,7 +1173,15 @@ async function sendSplit(){
     const tx = await c.splitPay(addrs, note, { value: parseNative(amt) });
     setStatus('splitStatus','⏳ Splitting… ' + short(tx.hash));
     const rc = await tx.wait();
-    setStatus('splitStatus',`✅ Split ${escHtml(amt)} ${NET.native.symbol} across ${addrs.length} wallets · <a href="${SCAN}/tx/${rc.hash}" target="_blank" rel="noreferrer">view tx ↗</a>`,'ok');
+    // A wallet that cannot receive (a contract without a payable fallback, a
+    // blocklisted address) gets skipped and its share comes straight back.
+    const returned = (rc.logs || []).map(l => { try{ return iface.parseLog(l); }catch{ return null; } })
+      .filter(ev => ev && ev.name === 'ShareReturned');
+    const paid = addrs.length - returned.length;
+    const back = returned.length
+      ? `<br/><span style="color:var(--amber)">${returned.length} wallet(s) could not receive — ${returned.map(ev => short(ev.args.to)).join(', ')}. Their share came back to you.</span>`
+      : '';
+    setStatus('splitStatus',`✅ Split ${escHtml(amt)} ${NET.native.symbol} across ${paid} wallet(s) · <a href="${SCAN}/tx/${rc.hash}" target="_blank" rel="noreferrer">view tx ↗</a>${back}`, returned.length ? '' : 'ok');
     toast('✓ Split sent');
   }catch(e){ setStatus('splitStatus','Failed: ' + errText(e,90),'err'); }
 }
@@ -1142,8 +1214,9 @@ async function refreshGas(){
    Arc Testnet → Ethereum Sepolia, message-only send.
    Router called directly from the browser — no extra contract to deploy.
    Fee paid in native USDC (feeToken = address(0)). */
+const CCIP_CFG = NET.ccip || {};           // null on a network without a CCIP lane
 const CCIP_ROUTER = NET.contracts.ccipRouter;
-const CCIP_DEST_SELECTOR = NET.ccip.destSelector;
+const CCIP_DEST_SELECTOR = CCIP_CFG.destSelector;
 const CCIP_ABI = [
   'function getFee(uint64 destinationChainSelector, (bytes receiver, bytes data, (address token, uint256 amount)[] tokenAmounts, address feeToken, bytes extraArgs) message) view returns (uint256)',
   'function ccipSend(uint64 destinationChainSelector, (bytes receiver, bytes data, (address token, uint256 amount)[] tokenAmounts, address feeToken, bytes extraArgs) message) payable returns (bytes32)'
@@ -1151,10 +1224,10 @@ const CCIP_ABI = [
 
 // Our receiver contract, deployed on Ethereum Sepolia.
 // Messages sent from Pay on Arc land here, get stored, and emit an event.
-const DEST_RECEIVER = NET.ccip.receiver;
-const DEST_RPC = NET.ccip.destRpc;
-const DEST_SCAN = NET.ccip.destScan;
-const DEST_NAME = NET.ccip.destName;
+const DEST_RECEIVER = CCIP_CFG.receiver;
+const DEST_RPC = CCIP_CFG.destRpc;
+const DEST_SCAN = CCIP_CFG.destScan;
+const DEST_NAME = CCIP_CFG.destName;
 const RECEIVER_ABI = [
   'function total() view returns (uint256)',
   'function getMessages(uint256 offset, uint256 limit) view returns ((bytes32 messageId, uint64 sourceChain, address sender, string text, uint256 receivedAt)[])'
@@ -1177,7 +1250,7 @@ function buildCcipMessage(receiver, text){
 }
 
 async function estimateCcipFee(){
-  if(!requireReady('ccStatus')) return null;
+  if(!FEATURES.ccip || !requireReady('ccStatus')) return null;
   const receiver = validAddr($('ccReceiver').value) || DEST_RECEIVER;
   try{
     const router = new ethers.Contract(CCIP_ROUTER, CCIP_ABI, readProvider);
@@ -1193,7 +1266,7 @@ async function estimateCcipFee(){
 }
 
 async function sendCcip(){
-  if(!await requireSigner('ccStatus')) return;
+  if(!FEATURES.ccip || !await requireSigner('ccStatus')) return;
   const receiver = validAddr($('ccReceiver').value) || DEST_RECEIVER;
   const text = $('ccMsg').value.trim() || 'gm from Arc';
   try{
@@ -1210,14 +1283,14 @@ async function sendCcip(){
     const tx = await router.ccipSend(CCIP_DEST_SELECTOR, msg, { value: funded });
     setStatus('ccStatus','⏳ Sending across chains… ' + short(tx.hash));
     const rc = await tx.wait();
-    setStatus('ccStatus',`✅ Sent from Arc → Ethereum Sepolia · <a href="${SCAN}/tx/${rc.hash}" target="_blank" rel="noreferrer">Arc tx ↗</a> · <a href="https://ccip.chain.link" target="_blank" rel="noreferrer">track on CCIP ↗</a><br/><span style="color:var(--muted)">Delivery takes a few minutes. Once it lands, hit "Load messages on Sepolia" below to see it stored in your receiver contract.</span>`,'ok');
+    setStatus('ccStatus',`✅ Sent from ${escHtml(NET.label)} → ${escHtml(DEST_NAME)} · <a href="${SCAN}/tx/${rc.hash}" target="_blank" rel="noreferrer">Arc tx ↗</a> · <a href="https://ccip.chain.link" target="_blank" rel="noreferrer">track on CCIP ↗</a><br/><span style="color:var(--muted)">Delivery takes a few minutes. Once it lands, hit "Load messages on Sepolia" below to see it stored in your receiver contract.</span>`,'ok');
     toast('✓ Cross-chain message sent');
   }catch(e){ setStatus('ccStatus','Failed: ' + errText(e,130),'err'); }
 }
 
 /* Read messages that have landed in the receiver contract on Sepolia */
 async function loadSepoliaMessages(){
-  if(!requireReady()) return;
+  if(!FEATURES.ccip || !requireReady()) return;
   const box = $('ccInbox');
   box.innerHTML = `<p class="empty"><span class="spin"></span>Reading your receiver contract on ${escHtml(DEST_NAME)}…</p>`;
   try{
@@ -1328,7 +1401,7 @@ async function explorerLogs(){
   let items = [], pp = null;
   logScanTruncated = false;
   for(let p = 0; p < EXPLORER_PAGES; p++){
-    let url = `${SCAN}/api/v2/addresses/${ARCPAY}/logs`;
+    let url = `${NET.explorerApi}/api/v2/addresses/${ARCPAY}/logs`;
     if(pp) url += '?' + new URLSearchParams(pp).toString();
     const j = await fetchJson(url);
     items = items.concat(j.items || []);
@@ -1348,7 +1421,10 @@ async function explorerLogs(){
 /* topicSets: array of topic filters to run; falls back to a full address scan. */
 async function getLogsFor(topicSets){
   try{ return await queryLogs(topicSets); }
-  catch(e){ return await explorerLogs(); }
+  catch(e){
+    if(!NET.explorerApi) throw e;
+    return await explorerLogs();
+  }
 }
 function parseAll(logs){
   return logs.map(l=>{
@@ -1432,7 +1508,7 @@ async function loadRecalls(opts){
     const me = userAddress.toLowerCase();
     const c = new ethers.Contract(ARCPAY, ABI, readProvider);
 
-    // ArcPayV2 keeps _sent/_received indexes and exposes them, so ask the
+    // ArcPayV3 keeps _sent/_received indexes and exposes them, so ask the
     // contract which payments are ours instead of scanning logs and hoping
     // they fall inside the scanned block range.
     const [sentIds, recvIds] = await Promise.all([
@@ -1568,28 +1644,42 @@ function boot(){
      costs a few more round trips and returns every row. */
   readProvider = new ethers.JsonRpcProvider(RPC, undefined, { batchMaxCount: 1, staticNetwork: true });
   iface = new ethers.Interface(ABI);
-  sepoliaProvider = new ethers.JsonRpcProvider(DEST_RPC, undefined, { batchMaxCount: 1, staticNetwork: true });
+  if(FEATURES.ccip){
+    sepoliaProvider = new ethers.JsonRpcProvider(DEST_RPC, undefined, { batchMaxCount: 1, staticNetwork: true });
+  }
   booted = true;
 
   // Links and copy that depend on the active network.
   $('cLink').href = `${SCAN}/address/${ARCPAY}`;
   $('netPill').textContent = NET.label;
   $('footNet').textContent = NET.label;
-  $('ccReceiver').value = DEST_RECEIVER;
-  $('ccLaneSrc').textContent = NET.label;
-  $('ccLane').textContent = DEST_NAME;
-  $('ccDestName').textContent = DEST_NAME;
-  $('ccReceiverLink').href = `${DEST_SCAN}/address/${DEST_RECEIVER}`;
-  $('ccReceiverLink').textContent = short(DEST_RECEIVER) + ' ↗';
-  $('ccRouterAddr').textContent = short(CCIP_ROUTER);
-  $('ccReceiverAddr').textContent = short(DEST_RECEIVER);
-  $('tAgentLink').href = `${SCAN}/address/${TREASURY}`;
-  $('tAgentLink').textContent = short(TREASURY) + ' ↗';
-  $('tPythAddr').textContent = short(PYTH);
+  if(IS_TESTNET){
+    $('netPill').classList.add('testnet');
+    $('netPill').title = 'Test network — balances here are not real money';
+  }
+  const other = Object.keys(NETWORKS).find(k => k !== ACTIVE_NETWORK && !coreProblems(NETWORKS[k]).length);
+  if(other){
+    $('netSwitch').innerHTML = ` · <a href="#" onclick="switchNetwork('${other}');return false;">switch to ${escHtml(NETWORKS[other].label)}</a>`;
+  }
+  if(FEATURES.ccip){
+    $('ccReceiver').value = DEST_RECEIVER;
+    $('ccLaneSrc').textContent = NET.label;
+    $('ccLane').textContent = DEST_NAME;
+    $('ccDestName').textContent = DEST_NAME;
+    $('ccReceiverLink').href = `${DEST_SCAN}/address/${DEST_RECEIVER}`;
+    $('ccReceiverLink').textContent = short(DEST_RECEIVER) + ' ↗';
+    $('ccRouterAddr').textContent = short(CCIP_ROUTER);
+    $('ccReceiverAddr').textContent = short(DEST_RECEIVER);
+  }
+  if(FEATURES.treasury){
+    $('tAgentLink').href = `${SCAN}/address/${TREASURY}`;
+    $('tAgentLink').textContent = short(TREASURY) + ' ↗';
+    $('tPythAddr').textContent = short(PYTH);
+  }
 
-  // The billing agent keeps a private key in localStorage. That is acceptable
-  // for a testnet demo and unacceptable for real funds — disable it outright.
-  if(!IS_TESTNET) kpDisableForMainnet();
+  // Belt and braces: the agent tab is already hidden off testnet, and every
+  // control in it is disabled too.
+  if(!FEATURES.agent) kpDisableForMainnet();
 
   refreshGas();
   setInterval(() => { if(!document.hidden) refreshGas(); }, 15000);
@@ -1611,7 +1701,7 @@ window.__ethersReady
 window.connect=connect; window.disconnect=disconnect; window.go=go; window.sendPay=sendPay; window.makeLink=makeLink;
 window.payIncoming=payIncoming; window.sendSplit=sendSplit; window.loadHistory=loadHistory;
 window.pickWindow=pickWindow; window.sendRecallable=sendRecallable; window.loadRecalls=loadRecalls;
-window.claimPay=claimPay; window.recallPay=recallPay;
+window.claimPay=claimPay; window.recallPay=recallPay; window.switchNetwork=switchNetwork;
 window.estimateCcipFee=estimateCcipFee; window.sendCcip=sendCcip; window.loadSepoliaMessages=loadSepoliaMessages;
 
 /* ===== Subscriptions contract ===== */
@@ -2475,7 +2565,7 @@ async function pythPriceOffChain(){
 }
 
 async function pythRefresh(){
-  if(!booted) return null;
+  if(!booted || !FEATURES.treasury) return null;
   $('eurMeta').textContent = 'reading…';
   // On-chain first: it always works. Only reach for the proxy if the feed has
   // never been pushed to Arc, or the stored price is unreadable.
@@ -2538,6 +2628,7 @@ async function pythUpdateData(){
 }
 
 async function treasuryScan(){
+  if(!FEATURES.treasury) return;
   if(!requireReady('tStatus')) return;
   try{
     setStatus('tStatus','Reading treasury status on-chain…');
@@ -2621,6 +2712,7 @@ function renderHealth(){
 }
 
 async function treasuryDeposit(which){
+  if(!FEATURES.treasury) return;
   if(!await requireSigner('tStatus')) return;
   const amt = parseAmount($('tDepAmt').value);
   if(!amt){ setStatus('tStatus','Enter a deposit amount above zero.','err'); return; }
@@ -2649,6 +2741,7 @@ async function treasuryDeposit(which){
 }
 
 async function treasuryRebalance(){
+  if(!FEATURES.treasury) return;
   if(!await requireSigner('tStatus')) return;
   try{
     await treasuryScan();

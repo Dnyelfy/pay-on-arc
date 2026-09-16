@@ -5,6 +5,9 @@ const fs = require('fs');
 const path = require('path');
 
 const CHAIN_ID = 5042002;
+const MAINNET_CHAIN_ID = 5042;
+const MAINNET_PAY = '0x' + '5a'.repeat(20);
+const MAINNET_SUBS = '0x' + '5b'.repeat(20);
 const CHAIN_ID_HEX = '0x' + CHAIN_ID.toString(16);
 const ETHERS_FILE = path.resolve(__dirname, '..', 'vendor', 'ethers-6.13.2.umd.min.js');
 const ACCOUNT = '0x1111111111111111111111111111111111111111';
@@ -45,11 +48,29 @@ async function stubRpc(page, overrides = {}) {
       default: return null;
     }
   };
-  await page.route('**rpc.testnet.arc.network**', async route => {
+  const serve = chainId => async route => {
     const body = JSON.parse(route.request().postData() || '{}');
-    const one = r => ({ jsonrpc: '2.0', id: r.id, result: answer(r.method, r.params) });
+    const pick = (method, params) =>
+      method === 'eth_chainId' && overrides[method] === undefined ? '0x' + chainId.toString(16)
+      : method === 'net_version' && overrides[method] === undefined ? String(chainId)
+      : answer(method, params);
+    const one = r => ({ jsonrpc: '2.0', id: r.id, result: pick(r.method, r.params) });
     const payload = Array.isArray(body) ? body.map(one) : one(body);
     await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(payload) });
+  };
+  await page.route('**rpc.testnet.arc.network**', serve(CHAIN_ID));
+  await page.route('**rpc.mainnet.arc.io**', serve(MAINNET_CHAIN_ID));
+}
+
+/** Serve index.html with the mainnet contract addresses filled in (or blanked),
+ *  so tests describe the behaviour whatever the committed file holds today. */
+async function withMainnet(page, { pay = MAINNET_PAY, subs = MAINNET_SUBS } = {}) {
+  await page.route('**/index.html*', async route => {
+    const res = await route.fetch();
+    const body = (await res.text())
+      .replace(/const MAINNET_PAY\s*=\s*'[^']*';/, `const MAINNET_PAY  = '${pay}';`)
+      .replace(/const MAINNET_SUBS\s*=\s*'[^']*';/, `const MAINNET_SUBS = '${subs}';`);
+    await route.fulfill({ response: res, body, headers: { ...res.headers(), 'content-type': 'text/html; charset=utf-8' } });
   });
 }
 
@@ -154,6 +175,13 @@ async function setup(page, opts = {}) {
   await stubRpc(page, opts.rpc);
   await stubExternal(page);
   if (!opts.noWallet) await installWallet(page, opts);
+  // Pin the network the suite was written against, so filling in the mainnet
+  // addresses later does not silently move every test onto mainnet.
+  // Pass { network: null } to exercise the page's own choice.
+  if (opts.network !== null) {
+    await page.addInitScript(k => { try { localStorage.setItem('payonarc.network', k); } catch (_) {} },
+                             opts.network || 'arc-testnet');
+  }
   return errors;
 }
 
@@ -171,5 +199,5 @@ async function goTab(page, name) {
   await page.waitForSelector('#sec-' + name + '.active');
 }
 
-module.exports = { setup, installWallet, stubEthersCdn, stubRpc, stubExternal, waitBooted, goTab,
-                   CHAIN_ID, CHAIN_ID_HEX, ACCOUNT, TX_HASH };
+module.exports = { setup, installWallet, stubEthersCdn, stubRpc, stubExternal, waitBooted, goTab, withMainnet,
+                   CHAIN_ID, CHAIN_ID_HEX, MAINNET_CHAIN_ID, MAINNET_PAY, MAINNET_SUBS, ACCOUNT, TX_HASH };

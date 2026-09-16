@@ -120,13 +120,13 @@ describe('ArcSub', function () {
       await sub.connect(other).subscribe(merchant.address, U(30), DAY, 'c');
     });
 
-    // FINDING: failures are swallowed, so a mined transaction proves nothing.
-    it('charges what it can and silently skips what it cannot', async () => {
+    // Fixed: a failure no longer vanishes — each skipped due charge is reported.
+    it('charges what it can and reports what it skipped', async () => {
       await jump(DAY);
       await usdc.connect(other).approve(subAddr, 0);       // #3 will now fail
       const before = await usdc.balanceOf(merchant.address);
 
-      await expect(sub.chargeMany([1, 2, 3])).to.not.be.reverted;   // no revert, no signal
+      await expect(sub.chargeMany([1, 2, 3])).to.emit(sub, 'ChargeSkipped').withArgs(3);
 
       expect(await usdc.balanceOf(merchant.address) - before).to.equal(U(30)); // 10 + 20, not 60
       expect((await sub.getSub(3)).nextChargeAt).to.be.lessThanOrEqual(await now()); // still due
@@ -144,9 +144,9 @@ describe('ArcSub', function () {
       expect(a[2] === b[2]).to.equal(true);    // untouched — this is what the UI now reports
     });
 
-    it('skips subscriptions that are not due', async () => {
+    it('skips subscriptions that are not due, without reporting them as failures', async () => {
       const before = await usdc.balanceOf(merchant.address);
-      await sub.chargeMany([1, 2, 3]);
+      await expect(sub.chargeMany([1, 2, 3])).to.not.emit(sub, 'ChargeSkipped');
       expect(await usdc.balanceOf(merchant.address)).to.equal(before);
     });
   });

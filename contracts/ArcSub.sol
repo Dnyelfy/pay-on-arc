@@ -2,8 +2,8 @@
 pragma solidity ^0.8.20;
 
 /**
- * ArcSub — On-chain subscriptions / recurring payments for ArcPay
- * Arc Testnet · USDC (ERC20): 0x3600000000000000000000000000000000000000
+ * ArcSub — On-chain subscriptions / recurring payments for Pay on Arc
+ * Arc (mainnet 5042, testnet 5042002) · USDC ERC-20 interface: 0x3600000000000000000000000000000000000000
  *
  * Model: allowance-pull. Funds stay in the subscriber's wallet.
  * - subscribe(): first period is charged immediately, next charge scheduled
@@ -37,6 +37,8 @@ contract ArcSub {
     event SubCreated(uint256 indexed id, address indexed subscriber, address indexed merchant, uint96 amount, uint32 interval, string label);
     event Charged(uint256 indexed id, address indexed merchant, uint96 amount, uint40 nextCharge);
     event Cancelled(uint256 indexed id, address by);
+    /// A due subscription chargeMany() could not collect (allowance revoked, balance short).
+    event ChargeSkipped(uint256 indexed id);
 
     constructor(address _usdc) {
         usdc = IERC20(_usdc);
@@ -86,12 +88,12 @@ contract ArcSub {
         emit Charged(id, s.merchant, s.amount, s.nextCharge);
     }
 
-    /// Batch-collect: skips subs that aren't due or fail (e.g. allowance revoked).
+    /// Batch-collect: skips subs that aren't due, and reports the due ones it could not charge.
     function chargeMany(uint256[] calldata ids) external {
         for (uint256 i = 0; i < ids.length; i++) {
             Sub storage s = subs[ids[i]];
             if (!s.active || block.timestamp < s.nextCharge) continue;
-            try this.charge(ids[i]) {} catch {}
+            try this.charge(ids[i]) {} catch { emit ChargeSkipped(ids[i]); }
         }
     }
 

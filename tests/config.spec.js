@@ -1,27 +1,17 @@
 // @ts-check
 const { test, expect } = require('@playwright/test');
-const { setup, waitBooted } = require('./harness');
-
-/** Serve index.html with a different ACTIVE_NETWORK, without touching the file. */
-async function withNetwork(page, name) {
-  await page.route('**/index.html*', async route => {
-    const res = await route.fetch();
-    const body = (await res.text())
-      .replace("const ACTIVE_NETWORK = 'arc-testnet';", `const ACTIVE_NETWORK = '${name}';`);
-    await route.fulfill({ response: res, body, headers: { ...res.headers(), 'content-type': 'text/html; charset=utf-8' } });
-  });
-}
+const { setup, waitBooted, withMainnet } = require('./harness');
 
 test.describe('network configuration', () => {
-  test('an unconfigured mainnet build refuses to run and names what is missing', async ({ page }) => {
+  test('an unconfigured mainnet, asked for explicitly, refuses to run and names what is missing', async ({ page }) => {
     await setup(page);
-    await withNetwork(page, 'arc-mainnet');
-    await page.goto('/index.html');
+    await withMainnet(page, { pay: '', subs: '' });
+    await page.goto('/index.html?net=mainnet');
 
     const banner = page.locator('body > div').first();
     await expect(banner).toContainText('Configuration incomplete', { timeout: 15000 });
     await expect(banner).toContainText('contracts.pay');
-    await expect(banner).toContainText('rpc');
+    await expect(banner).toContainText('contracts.subs');
 
     // Nothing may have been wired up.
     await expect(page.locator('#netPill')).toHaveText('—');
@@ -29,12 +19,10 @@ test.describe('network configuration', () => {
 
   test('an unconfigured build will not send a payment', async ({ page }) => {
     await setup(page);
-    await withNetwork(page, 'arc-mainnet');
-    await page.goto('/index.html');
+    await withMainnet(page, { pay: '', subs: '' });
+    await page.goto('/index.html?net=mainnet');
     await expect(page.locator('body > div').first()).toContainText('Configuration incomplete');
 
-    // The unconfigured build never boots, so no tab logic runs — reveal the
-    // pay panel directly and prove the form still refuses to sign.
     await page.evaluate(() => document.getElementById('sec-pay').classList.add('active'));
     await page.fill('#payTo', '0x2222222222222222222222222222222222222222');
     await page.fill('#payAmt', '1');
@@ -46,23 +34,25 @@ test.describe('network configuration', () => {
     expect(sent).toBe(0);
   });
 
-  test('the network profile is the only source of chain constants', async ({ page }) => {
-    await setup(page);
+  test('with mainnet not yet deployed, a plain visit keeps running on testnet', async ({ page }) => {
+    await setup(page, { network: null });
+    await withMainnet(page, { pay: '', subs: '' });
     await page.goto('/index.html');
     await waitBooted(page);
-
-    const cfg = await page.evaluate(() => ({
-      chainId: window.CHAIN_ID, pay: window.ARCPAY, scan: window.SCAN,
-      testnet: window.IS_TESTNET, problems: window.configProblems()
-    }));
-    // top-level `const` is not exposed on window; check via the DOM it drives
-    expect(await page.evaluate(() => window.configProblems())).toEqual([]);
-    expect(cfg.problems).toEqual([]);
+    await expect(page.locator('#netPill')).toHaveText('Arc Testnet');
+    await expect(page.locator('#netSwitch')).toBeEmpty();   // nowhere to switch to yet
   });
 
-  test('the billing agent is available on testnet and disabled otherwise', async ({ page }) => {
+  test('the network profile is the only source of chain constants', async ({ page }) => {
     await setup(page);
-    await page.goto('/index.html');
+    await page.goto('/index.html?net=testnet');
+    await waitBooted(page);
+    expect(await page.evaluate(() => window.configProblems())).toEqual([]);
+  });
+
+  test('the billing agent is available on testnet', async ({ page }) => {
+    await setup(page);
+    await page.goto('/index.html?net=testnet');
     await waitBooted(page);
     await page.click('button:has-text("Billing Agent")');
     await expect(page.locator('#kpState')).toHaveText('agent offline');

@@ -40,7 +40,7 @@ test.describe('page boot', () => {
     await expect(page.locator('#ccLaneSrc')).toHaveText('Arc Testnet');
     await expect(page.locator('#ccLane')).toHaveText('Ethereum Sepolia');
     expect(await page.locator('#cLink').getAttribute('href'))
-      .toBe('https://testnet.arcscan.app/address/0x418E2c81b0E90C98780494c62C73452657CA979b');
+      .toBe('https://testnet.arcscan.app/address/0xa0185d00ECAE1263282996A4B132949b0aee47E4');
     expect(await page.locator('#tAgentLink').getAttribute('href'))
       .toContain('0xC99f4c415C7d9e2bafDC04C43500131fDb43eA53');
   });

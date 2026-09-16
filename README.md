@@ -16,16 +16,16 @@ Playwright test suite.
 
 ## The tabs
 
-| Tab | What it does |
-| --- | --- |
-| **Subscriptions** | Approve USDC once; each period is pulled only when due. Cancel on-chain from either side. |
-| **Billing Agent** | A burner-key worker in the page that scans the contract every 15s and charges what is due, unattended. Testnet only. |
-| Pay & Link | A payment with a note written on-chain, or a shareable pay-link that prefills it. |
-| Split | One transaction, equal shares to up to 20 wallets, dust returned. |
-| Recallable | The recipient can claim; if they never do, the sender takes it back after the window. |
-| Cross-Chain | A message through the CCIP router that lands and runs code on the far chain. |
-| Treasury | Reads the Pyth EUR/USD feed and pays a keeper to settle drift back into band. |
-| Receipts | Your payments, read from the contract's own events. |
+| Tab | What it does | Mainnet | Testnet |
+| --- | --- | --- | --- |
+| **Subscriptions** | Approve USDC once; each period is pulled only when due. Cancel on-chain from either side. | ✓ | ✓ |
+| **Billing Agent** | A burner-key worker in the page that scans the contract every 15s and charges what is due, unattended. | — | ✓ |
+| Pay & Link | A payment with a note written on-chain, or a shareable pay-link that prefills it. | ✓ | ✓ |
+| Split | One transaction, equal shares to up to 20 wallets, dust returned. | ✓ | ✓ |
+| Recallable | The sender can cancel inside the window; once it closes the recipient claims. | ✓ | ✓ |
+| Cross-Chain | A message through the CCIP router that lands and runs code on the far chain. | — | ✓ |
+| Treasury | Reads the Pyth EUR/USD feed and pays a keeper to settle drift back into band. | — | ✓ |
+| Receipts | Your payments, read from the contract's own events. | ✓ | ✓ |
 
 ## Running locally
 
@@ -42,44 +42,42 @@ binary fetched at build time, so the same compiler is used on every machine,
 offline. `hardhat.config.js` overrides Hardhat's compiler-download subtask to
 point at it.
 
-The page can also be opened straight from a static host; nothing is compiled.
+## Networks
 
-## Switching networks
+Every chain constant lives in the `NETWORKS` map at the top of the inline
+script in `index.html`. Nothing else in the file hardcodes a chain ID, an RPC,
+an explorer or a contract address.
 
-Every chain constant lives in one place: the `NETWORKS` map at the top of the
-inline script in `index.html`. Nothing else in the file hardcodes a chain ID,
-an RPC, an explorer or a contract address.
+| | Arc Mainnet | Arc Testnet |
+| --- | --- | --- |
+| Chain ID | 5042 | 5042002 |
+| RPC | `https://rpc.mainnet.arc.io` | `https://rpc.testnet.arc.network` |
+| Explorer | `https://explorer.arc.io` | `https://testnet.arcscan.app` |
+| Payments (ArcPayV3) | `0x1C68d18F2C7A4fb694633B4815AE5E5153Dd59Da` | `0xa0185d00ECAE1263282996A4B132949b0aee47E4` |
+| Subscriptions (ArcSub) | `0x72E4d6027c2984ddd42EaB8d8F00e9BD17299614` | `0x015f65293c936741588dC03ebDD1A193D62535eC` |
 
-```js
-const ACTIVE_NETWORK = 'arc-testnet';   // ← the only line to change
-```
+### Which network a visit runs on
 
-To go live, fill in the `arc-mainnet` profile and flip that constant:
+1. `?net=mainnet` or `?net=testnet` always wins.
+2. A pay-link or subscribe-link without `?net` was made before mainnet existed,
+   so it opens on testnet — never on real money. New links always carry `net`.
+3. The network this browser last switched to from the footer.
+4. Otherwise mainnet, as long as its payments and subscriptions addresses are
+   filled in; if either is blank the site falls back to testnet.
 
-| Key | What it needs |
-| --- | --- |
-| `chainId`, `rpc`, `scan` | Arc mainnet chain ID, RPC endpoint, block explorer |
-| `native` | Symbol and decimals of the native gas token |
-| `contracts.pay` | Pay on Arc payments contract |
-| `contracts.subs` | Subscriptions contract |
-| `contracts.treasury` | Treasury agent contract |
-| `contracts.usdc`, `contracts.eurc` | Stablecoin token addresses |
-| `contracts.ccipRouter` | Chainlink CCIP router on Arc |
-| `contracts.pyth` | Pyth contract on Arc |
-| `ccip.destSelector`, `ccip.receiver`, `ccip.destRpc`, `ccip.destScan` | The far side of the CCIP lane |
+### Features that switch themselves off
 
-`configProblems()` runs at boot and refuses to start on a profile with blanks,
-listing exactly what is missing — a half-configured build cannot quietly send
-real money to the zero address.
+A feature needs its own infrastructure on the chain. Where it is missing the
+tab is hidden, not shown broken:
 
-### What changes automatically on a non-testnet profile
-
-The **billing agent** keeps a burner private key in `localStorage`. That is a
-reasonable trade for a testnet demo and a bad one for real funds, so the whole
-tab disables itself when `testnet: false`. Merchants collect with the
-"Collect all due payments" button, or by running a keeper from a server they
-control. Do not re-enable the in-browser agent for mainnet without moving the
-key somewhere it belongs.
+- **Billing agent** — keeps a burner private key in `localStorage`. Acceptable
+  for a testnet demo, not for real funds, so it is testnet-only. On mainnet,
+  merchants collect with "Collect everything due" or a keeper they run
+  themselves.
+- **Cross-Chain** — Chainlink CCIP lists no Arc mainnet lane yet. Fill in
+  `contracts.ccipRouter` and `ccip` on the mainnet profile and the tab returns.
+- **Treasury** — Pyth lists no Arc mainnet contract yet. Fill in
+  `contracts.treasury`, `contracts.pyth` and `pythEurUsdId` and the tab returns.
 
 ## Dependencies
 
@@ -100,39 +98,36 @@ The test suite serves the vendored bytes in place of the CDN, so a stale
 
 ## Contracts
 
-`contracts/ArcPayV2.sol` and `contracts/ArcSub.sol` are the payments and
-subscription contracts, deployed at the `pay` and `subs` addresses in the
-network profile. `contracts/TreasuryAgent.sol` is the treasury. All three
-deployed contracts now have their sources here.
+`contracts/ArcPayV3.sol` and `contracts/ArcSub.sol` are the payments and
+subscription contracts, deployed at the `pay` and `subs` addresses in each
+network profile. `contracts/TreasuryAgent.sol` is the testnet treasury.
 
-### Review notes on ArcPayV2
+### ArcPayV3
 
-Read as part of wiring the frontend to it. Not an audit — an audit is still
-required before any mainnet profile is filled in.
+V2's recallable window ran backwards: the recipient could claim at once and the
+sender could only take the money back after the window. V3 puts each party on
+the side the name promises — inside the window only the sender can cancel,
+after it only the recipient can claim. A payment untouched for 30 days past the
+window can be reclaimed by the sender, so a recipient that can never receive
+does not lock funds forever.
+
+`splitPay()` no longer reverts the whole batch when one recipient refuses its
+share. The refused share goes back to the sender together with the rounding
+dust (`ShareReturned`), and that refund must succeed, so nothing is stranded in
+the contract.
 
 **Sound**
 
-- `claim()` and `recall()` both set `status` *before* the external call, so a
-  re-entering recipient hits the `status == 0` guard. No drain path.
-- A recipient contract that rejects the transfer cannot strand a recallable
-  payment: `claim()` reverts, but the sender can still `recall()` after the
-  window.
+- `claim()` and `recall()` set `status` before the external call, so a
+  re-entering recipient hits the `status == 0` guard.
 - No owner, no pause, no upgrade path — nothing to trust.
-- The recall window is bounded to 60s–30 days.
+- The window is bounded to 60s–30 days.
 
-**Worth changing**
+**Still worth knowing**
 
-- `splitPay()` reverts the whole batch if *any* recipient rejects the transfer
-  (`require(ok)` inside the loop). One recipient contract without a payable
-  fallback — deliberate or accidental — blocks the entire split. A pull-payment
-  pattern, or crediting failed shares for later withdrawal, removes the
-  griefing vector.
-- `splitPay()` ignores a failed dust refund (`ok2;`). The remainder is then
-  stranded in the contract permanently, and the contract balance no longer
-  equals the sum of pending recallables.
 - `sentBy()` / `receivedBy()` return unbounded arrays. Fine today; for a very
-  active address these view calls will eventually outgrow a node's response
-  limits, and a paginated variant would age better.
+  active address these views will eventually outgrow a node's response limits.
+- Not audited.
 
 ### Review notes on ArcSub
 
@@ -154,17 +149,14 @@ required before any mainnet profile is filled in.
 
 **Worth changing**
 
-- `chargeMany()` deliberately swallows every failure
-  (`try this.charge(ids[i]) {} catch {}`). That is the right behaviour — one
-  subscriber with a revoked approval must not block the batch — but it means a
-  *mined transaction proves nothing about whether anyone was charged*, and
-  nothing on-chain reports which ones were skipped. An event per skipped id, or
-  a returned count, would let a caller tell success from silence.
+- `chargeMany()` does not let one failing subscriber block the batch, and
+  emits `ChargeSkipped(id)` for every due charge it could not collect. The
+  testnet deployment predates that event.
 - `transferFrom` is called through a plain `IERC20` and its `bool` is checked.
   Circle's USDC returns one, so this is correct here; a `SafeERC20`-style
   wrapper would survive a token that returns nothing.
 - `listBySubscriber()` / `listByMerchant()` return unbounded arrays, same
-  ageing problem as ArcPayV2's indexes.
+  ageing problem as ArcPayV3's indexes.
 - `label` is arbitrary caller-controlled text, and the contract cannot
   sanitise it. Any frontend must escape it — this is exactly the stored-XSS
   path that was fixed in the agent terminal.
@@ -232,19 +224,20 @@ and a stubbed EIP-1193 wallet — no chain, no funds, no network.
 | `paylink.spec.js` | Pay-link generation and consumption |
 | `security.spec.js` | Escaping of chain- and URL-sourced strings, script pinning |
 | `chain-guard.spec.js` | Wrong-network refusal, chain add, disconnect cleanup |
-| `config.spec.js` | Unconfigured-network refusal |
+| `config.spec.js` | Unconfigured-network refusal, testnet fallback |
+| `mainnet.spec.js` | Mainnet landing, hidden features, network-tagged links, legacy links opening on testnet, footer switch |
 | `navigation.spec.js` | Landing pitch, tab folding, deep links, keyboard tablist, live pricing |
 
 ### Contract tests
 
-`test/` runs the contracts on a local EVM — **60 tests**. They exist to prove
+`test/` runs the contracts on a local EVM — **63 tests**. They exist to prove
 what the review claims, in both directions: the guards that hold, and the
 findings that are real.
 
 | File | Notable cases |
 | --- | --- |
-| `ArcPayV2.t.js` | A recipient contract re-entering `claim()` takes exactly what it is owed and cannot touch another payment. A recipient that rejects ETH cannot strand funds — the sender still recalls. **`splitPay()` reverts the whole batch when one recipient refuses**, which is the griefing vector. Dust returns to the sender; the window bounds hold. |
-| `ArcSub.t.js` | A token that re-enters `charge()` cannot double-charge. Ten missed periods charge once, not ten. **`chargeMany()` charges what it can and silently skips the rest** — the test asserts the schedules are the only way to tell who paid, which is what the UI now reports. Only `msg.sender` can subscribe themselves, which is what bounds an unlimited approval. |
+| `ArcPayV3.t.js` | The recipient cannot claim inside the window and the sender cannot cancel after it. A payment abandoned for 30 days returns to the sender, unless the recipient acts first. A recipient re-entering `claim()` takes exactly what it is owed. **A refusing recipient no longer sinks a split**, and a sender that refuses its own refund makes the split revert rather than strand funds. |
+| `ArcSub.t.js` | A token that re-enters `charge()` cannot double-charge. Ten missed periods charge once, not ten. **`chargeMany()` charges what it can and reports each skipped id with `ChargeSkipped`**. Only `msg.sender` can subscribe themselves, which is what bounds an unlimited approval. |
 | `TreasuryAgent.t.js` | The confidence guard defers instead of trading, and nothing moves. Rebalancing pays the keeper a bonus and lands the mix inside the band. **Anyone can deposit but only the owner can withdraw**, asserted with a stranger's money. **`rebalance()` has no `maxIn`**, asserted by showing the same call pulls ten times as much from a treasury ten times larger. Native currency sent in cannot come out. |
 
 Findings are marked `FINDING:` in the test files. They assert current
